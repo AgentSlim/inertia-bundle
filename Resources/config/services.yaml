@@ -5,9 +5,8 @@ services:
     arguments:
       $engine: '@twig'
       $requestStack: '@request_stack'
+      $container: '@service_container'
       $serializer: '@serializer'
-    calls:
-      - setContainer: ['@service_container']
 
   Rompetomp\InertiaBundle\Service\InertiaInterface: '@rompetomp_inertia.inertia'
 

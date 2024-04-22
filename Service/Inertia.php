@@ -2,8 +2,8 @@
 
 namespace Rompetomp\InertiaBundle\Service;
 
+use Psr\Container\ContainerInterface;
 use Rompetomp\InertiaBundle\LazyProp;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -15,47 +15,33 @@ use Twig\Environment;
 
 class Inertia implements InertiaInterface
 {
-    use ContainerAwareTrait;
-
-    /** @var string */
-    protected $rootView;
-
-    /** @var \Twig\Environment */
-    protected $engine;
-
-    /** @var SerializerInterface */
-    protected $serializer;
 
     /** @var array */
-    protected $sharedProps = [];
+    protected array $sharedProps = [];
 
     /** @var array */
-    protected $sharedViewData = [];
+    protected array $sharedViewData = [];
 
     /** @var array */
-    protected $sharedContext = [];
+    protected array $sharedContext = [];
 
-    /** @var \Symfony\Component\HttpFoundation\RequestStack */
-    protected $requestStack;
+    protected ?string $version = null;
 
-    /** @var string */
-    protected $version = null;
+    protected bool $useSsr = false;
 
-    /** @var bool */
-    protected $useSsr = false;
-
-    /** @var string */
-    protected $ssrUrl = '';
+    protected string $ssrUrl = '';
 
     /**
      * Inertia constructor.
      */
-    public function __construct(string $rootView, Environment $engine, RequestStack $requestStack, ?SerializerInterface $serializer = null)
+    public function __construct(
+        protected string $rootView,
+        protected Environment $engine,
+        protected RequestStack $requestStack,
+        private ContainerInterface $container,
+        protected ?SerializerInterface $serializer = null,
+    )
     {
-        $this->engine = $engine;
-        $this->rootView = $rootView;
-        $this->requestStack = $requestStack;
-        $this->serializer = $serializer;
     }
 
     public function share(string $key, $value = null): void
@@ -63,7 +49,7 @@ class Inertia implements InertiaInterface
         $this->sharedProps[$key] = $value;
     }
 
-    public function getShared(string $key = null)
+    public function getShared(string $key = null): mixed
     {
         if ($key) {
             return $this->sharedProps[$key] ?? null;
@@ -77,7 +63,7 @@ class Inertia implements InertiaInterface
         $this->sharedViewData[$key] = $value;
     }
 
-    public function getViewData(string $key = null)
+    public function getViewData(string $key = null): mixed
     {
         if ($key) {
             return $this->sharedViewData[$key] ?? null;
@@ -86,12 +72,12 @@ class Inertia implements InertiaInterface
         return $this->sharedViewData;
     }
 
-    public function context(string $key, $value = null): void
+    public function context(string $key, mixed $value = null): void
     {
         $this->sharedContext[$key] = $value;
     }
 
-    public function getContext(string $key = null)
+    public function getContext(string $key = null): mixed
     {
         if ($key) {
             return $this->sharedContext[$key] ?? null;
@@ -140,7 +126,7 @@ class Inertia implements InertiaInterface
         return $this->ssrUrl;
     }
 
-    public function render($component, $props = [], $viewData = [], $context = [], $url = null): Response
+    public function render(string $component, array $props = [], array $viewData = [], array $context = [], string $url = null): Response
     {
         $context = array_merge($this->sharedContext, $context);
         $viewData = array_merge($this->sharedViewData, $viewData);
@@ -195,9 +181,10 @@ class Inertia implements InertiaInterface
     }
 
     /**
-     * @param callable|string|array $callback
+     * @param callable|array|string $callback
+     * @return LazyProp
      */
-    public function lazy($callback): LazyProp
+    public function lazy(callable|array|string $callback): LazyProp
     {
         if (is_string($callback)) {
             $callback = explode('::', $callback, 2);
@@ -223,11 +210,12 @@ class Inertia implements InertiaInterface
      *
      * @see https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/AJAX_Security_Cheat_Sheet.md#always-return-json-with-an-object-on-the-outside
      *
+     * @param array $page
      * @param array $context
      *
      * @return array @return array returns a decoded array of the previously JSON-encoded data, so it can safely be given to {@see JsonResponse}
      */
-    private function serialize(array $page, $context = []): array
+    private function serialize(array $page, array $context = []): array
     {
         if (null !== $this->serializer) {
             $json = $this->serializer->serialize($page, 'json', array_merge([
