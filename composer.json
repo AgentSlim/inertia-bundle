@@ -1,5 +1,5 @@
 {
-  "name": "rompetomp/inertia-bundle",
+  "name": "agentslim/inertia-bundle",
   "description": "A Symfony adapter for Inertia.js",
   "type": "symfony-bundle",
   "license": "MIT",
