@@ -4,28 +4,38 @@ namespace Rompetomp\InertiaBundle\Ssr;
 
 use Exception;
 use Rompetomp\InertiaBundle\Service\InertiaInterface;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class HttpGateway implements GatewayInterface
+readonly class HttpGateway implements GatewayInterface
 {
-    private $interia;
-    private $httpClient;
-
-    public function __construct(HttpClientInterface $httpClient, InertiaInterface $inertia)
+    public function __construct(
+        private HttpClientInterface $httpClient,
+        private InertiaInterface    $inertia
+    )
     {
-        $this->interia = $inertia;
-        $this->httpClient = $httpClient;
     }
 
     /**
      * Dispatch the Inertia page to the Server Side Rendering engine.
+     * @param array<array-key, mixed> $page
+     * @return Response|null
+     * @throws TransportExceptionInterface
+     * @throws ClientExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws ServerExceptionInterface
      */
     public function dispatch(array $page): ?Response
     {
         try {
             $response = $this->httpClient->request(
                 'POST',
-                $this->interia->getSsrUrl(),
+                $this->inertia->getSsrUrl(),
                 [
                     'headers' => [
                         'Content-Type: application/json',
@@ -34,11 +44,7 @@ class HttpGateway implements GatewayInterface
                     'body' => json_encode($page),
                 ]
             );
-        } catch (Exception $e) {
-            return null;
-        }
-
-        if (is_null($response)) {
+        } catch (Exception) {
             return null;
         }
 

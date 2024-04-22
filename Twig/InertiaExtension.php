@@ -18,20 +18,11 @@ use Twig\TwigFunction;
  */
 class InertiaExtension extends AbstractExtension
 {
-    /**
-     * @var InertiaInterface
-     */
-    private $inertia;
-
-    /**
-     * @var GatewayInterface
-     */
-    private $gateway;
-
-    public function __construct(InertiaInterface $inertia, GatewayInterface $gateway)
+    public function __construct(
+        private InertiaInterface $inertia,
+        private GatewayInterface $gateway
+    )
     {
-        $this->gateway = $gateway;
-        $this->inertia = $inertia;
     }
 
     public function getFunctions(): array
@@ -42,7 +33,7 @@ class InertiaExtension extends AbstractExtension
         ];
     }
 
-    public function inertiaFunction($page)
+    public function inertiaFunction($page): Markup
     {
         if ($this->inertia->isSsr()) {
             $response = $this->gateway->dispatch($page);
@@ -54,7 +45,7 @@ class InertiaExtension extends AbstractExtension
         return new Markup('<div id="app" data-page="'.htmlspecialchars(json_encode($page)).'"></div>', 'UTF-8');
     }
 
-    public function inertiaHeadFunction($page)
+    public function inertiaHeadFunction($page): Markup
     {
         if ($this->inertia->isSsr()) {
             $response = $this->gateway->dispatch($page);
